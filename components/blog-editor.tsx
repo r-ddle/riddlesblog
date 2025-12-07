@@ -33,6 +33,7 @@ import {
   ArrowDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { renderInlineMarkdown } from "@/lib/markdown"
 import { CodeBlock } from "./code-block"
 
 type Block =
@@ -898,19 +899,21 @@ function PostPreview({
 }
 
 function BlockPreview({ block }: { block: Block }) {
+  const render = (text: string) => ({ __html: renderInlineMarkdown(text || "") })
+
   switch (block.type) {
     case "paragraph":
-      return <p className="font-serif leading-relaxed text-base">{block.text}</p>
+      return <p className="font-serif leading-relaxed text-base" dangerouslySetInnerHTML={render(block.text)} />
     case "heading": {
       const Tag = `h${block.level}` as keyof JSX.IntrinsicElements
-      return <Tag className="font-bold text-2xl mt-4">{block.text}</Tag>
+      return <Tag className="font-bold text-2xl mt-4" dangerouslySetInnerHTML={render(block.text)} />
     }
     case "code":
       return <CodeBlock code={block.code} language={block.language} filename={block.caption} />
     case "quote":
       return (
         <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">
-          <p>{block.text}</p>
+          <p dangerouslySetInnerHTML={render(block.text)} />
           {block.attribution && <p className="font-mono text-xs mt-2">— {block.attribution}</p>}
         </blockquote>
       )
@@ -925,8 +928,11 @@ function BlockPreview({ block }: { block: Block }) {
             block.variant === "warn" && "border-destructive/60 bg-destructive/10",
           )}
         >
-          <div className="font-mono text-xs uppercase tracking-wide mb-1">{block.title || block.variant}</div>
-          <p className="text-sm leading-relaxed">{block.text}</p>
+          <div
+            className="font-mono text-xs uppercase tracking-wide mb-1"
+            dangerouslySetInnerHTML={render(block.title || block.variant)}
+          />
+          <p className="text-sm leading-relaxed" dangerouslySetInnerHTML={render(block.text)} />
         </div>
       )
     case "list":
@@ -934,7 +940,7 @@ function BlockPreview({ block }: { block: Block }) {
         return (
           <ol className="list-decimal pl-6 space-y-1">
             {block.items.map((item, i) => (
-              <li key={i}>{item}</li>
+              <li key={i} dangerouslySetInnerHTML={render(item)} />
             ))}
           </ol>
         )
@@ -942,7 +948,7 @@ function BlockPreview({ block }: { block: Block }) {
       return (
         <ul className="list-disc pl-6 space-y-1">
           {block.items.map((item, i) => (
-            <li key={i}>{item}</li>
+            <li key={i} dangerouslySetInnerHTML={render(item)} />
           ))}
         </ul>
       )
@@ -955,7 +961,10 @@ function BlockPreview({ block }: { block: Block }) {
             className="w-full rounded-sm border-2 border-foreground/40"
           />
           {(block.caption || block.alt) && (
-            <figcaption className="text-xs text-muted-foreground font-mono">{block.caption || block.alt}</figcaption>
+            <figcaption
+              className="text-xs text-muted-foreground font-mono"
+              dangerouslySetInnerHTML={render(block.caption || block.alt || "")}
+            />
           )}
         </figure>
       )
