@@ -4,7 +4,8 @@ import type React from "react"
 
 import Link from "next/link"
 import { useState } from "react"
-import { Search, Menu, X } from "lucide-react"
+import { Search, Menu, X, PenTool } from "lucide-react"
+import { ThemeToggle } from "./theme-toggle"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -31,18 +32,25 @@ export function Navbar() {
             <NavLink href="/">home</NavLink>
             <NavLink href="/categories">categories</NavLink>
             <NavLink href="/about">about</NavLink>
+            <NavLink href="/admin">
+              <PenTool className="w-4 h-4" />
+            </NavLink>
             <NavLink href="/search">
               <Search className="w-4 h-4" />
             </NavLink>
+            <ThemeToggle />
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 bg-card border-2 border-foreground rounded-sm shadow-xs hover:shadow-sm transition-shadow"
-          >
-            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 bg-card border-2 border-foreground rounded-sm shadow-xs hover:shadow-sm transition-shadow"
+            >
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -57,6 +65,9 @@ export function Navbar() {
               </MobileNavLink>
               <MobileNavLink href="/about" onClick={() => setIsMenuOpen(false)}>
                 about
+              </MobileNavLink>
+              <MobileNavLink href="/admin" onClick={() => setIsMenuOpen(false)}>
+                create post
               </MobileNavLink>
               <MobileNavLink href="/search" onClick={() => setIsMenuOpen(false)}>
                 search

@@ -5,26 +5,63 @@ import { ArrowLeft } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { CategoryTag } from "@/components/category-tag"
-import { CodeBlock } from "@/components/code-block"
-import { getPostBySlug, blogPosts } from "@/lib/blog-data"
+import { getPostBySlug, getPublishedPosts } from "@/lib/blog-actions"
 
 interface PostPageProps {
   params: Promise<{ slug: string }>
 }
 
 export async function generateStaticParams() {
-  return blogPosts.map((post) => ({
+  const posts = await getPublishedPosts()
+  return posts.map((post) => ({
     slug: post.slug,
   }))
 }
 
+// Parse markdown to HTML
+function parseMarkdown(md: string): string {
+  return md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(
+      /```(\w+)?\n([\s\S]*?)```/g,
+      '<pre class="bg-muted p-4 rounded-sm overflow-x-auto border-2 border-foreground my-4 font-mono text-sm"><code>$2</code></pre>',
+    )
+    .replace(/`([^`]+)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
+    .replace(/^### (.*)$/gm, '<h3 class="text-lg font-bold mt-6 mb-2">$1</h3>')
+    .replace(/^## (.*)$/gm, '<h2 class="text-xl font-bold mt-8 mb-3">$1</h2>')
+    .replace(/^# (.*)$/gm, '<h1 class="text-2xl font-bold mt-8 mb-4">$1</h1>')
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(
+      /\[([^\]]+)\]$$([^)]+)$$/g,
+      '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener">$1</a>',
+    )
+    .replace(
+      /!\[([^\]]*)\]$$([^)]+)$$/g,
+      '<img src="$2" alt="$1" class="rounded-sm border-2 border-foreground my-4 max-w-full" />',
+    )
+    .replace(
+      /^&gt; (.*)$/gm,
+      '<blockquote class="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground">$1</blockquote>',
+    )
+    .replace(/^---$/gm, '<hr class="border-t-2 border-foreground my-8" />')
+    .replace(/^- (.*)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/^\d+\. (.*)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+    .replace(/\n\n/g, '</p><p class="my-4 font-serif leading-relaxed">')
+}
+
 export default async function PostPage({ params }: PostPageProps) {
   const { slug } = await params
-  const post = getPostBySlug(slug)
+  const post = await getPostBySlug(slug)
 
-  if (!post) {
+  if (!post || !post.published) {
     notFound()
   }
+
+  const htmlContent = parseMarkdown(post.content)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -50,33 +87,43 @@ export default async function PostPage({ params }: PostPageProps) {
             {/* Meta Info - Paper slip style */}
             <div className="flex flex-wrap items-center gap-4 p-3 bg-card border-2 border-foreground/50 rounded-sm font-mono text-sm">
               <span className="flex items-center gap-1">
-                <span className="text-muted-foreground">📅</span>
-                {post.date}
+                <span className="text-muted-foreground">//</span>
+                {new Date(post.created_at).toLocaleDateString()}
               </span>
               <span className="text-primary">|</span>
               <span className="flex items-center gap-1">
-                <span className="text-muted-foreground">⏱️</span>
-                {post.readingTime}
+                <span className="text-muted-foreground">~</span>
+                {post.reading_time}
               </span>
-              <span className="text-primary">|</span>
-              <div className="flex gap-2">
-                {post.tags.map((tag) => (
-                  <span key={tag} className="text-muted-foreground">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
+              {post.tags.length > 0 && (
+                <>
+                  <span className="text-primary">|</span>
+                  <div className="flex gap-2">
+                    {post.tags.map((tag) => (
+                      <span key={tag} className="text-muted-foreground">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </header>
 
           {/* Featured Image - Polaroid style */}
-          {post.image && (
-            <div className="mb-8 p-3 bg-white border-2 border-foreground shadow-sm rotate-[-0.5deg]">
+          {post.image_url && (
+            <div className="mb-8 p-3 bg-white dark:bg-card border-2 border-foreground shadow-sm rotate-[-0.5deg]">
               <div className="relative aspect-[16/9] overflow-hidden">
-                <Image src={post.image || "/placeholder.svg"} alt={post.title} fill className="object-cover" priority />
+                <Image
+                  src={post.image_url || "/placeholder.svg"}
+                  alt={post.title}
+                  fill
+                  className="object-cover"
+                  priority
+                />
               </div>
               <p className="mt-2 font-mono text-xs text-muted-foreground text-center">
-                ~ a visual representation of my mental state ~
+                ~ a visual representation of the chaos ~
               </p>
             </div>
           )}
@@ -98,69 +145,40 @@ export default async function PostPage({ params }: PostPageProps) {
           </div>
 
           {/* Post Content */}
-          <div className="prose prose-lg max-w-none">
+          <div className="prose prose-lg max-w-none dark:prose-invert">
             {/* Lead paragraph */}
-            <p className="text-xl font-serif text-muted-foreground leading-relaxed mb-6">{post.excerpt}</p>
+            {post.excerpt && (
+              <p className="text-xl font-serif text-muted-foreground leading-relaxed mb-6">{post.excerpt}</p>
+            )}
 
-            {/* Sample content sections */}
-            <h2 className="text-2xl font-bold mt-8 mb-4">The Context 🎭</h2>
-            <p className="font-serif leading-relaxed mb-4">
-              So there I was, staring at my screen at 3AM, wondering if the bug was in my code or in my life choices.
-              Spoiler alert: it was both. The coffee had stopped working three hours ago, but I was too deep in the
-              debugging session to care.
-            </p>
-
-            <CodeBlock
-              code={`// This seemed like a good idea at 3AM
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const myLife = await sleep(Infinity);
-// Why isn't this working?`}
-              language="javascript"
-              filename="existential-crisis.js"
+            {/* Content */}
+            <div
+              className="space-y-4"
+              dangerouslySetInnerHTML={{ __html: `<p class="my-4 font-serif leading-relaxed">${htmlContent}</p>` }}
             />
-
-            <h2 className="text-2xl font-bold mt-8 mb-4">The Plot Thickens 🍿</h2>
-            <p className="font-serif leading-relaxed mb-4">
-              After six more cups of coffee and a deep philosophical conversation with my rubber duck, I finally found
-              the issue. It was a missing semicolon. Classic JavaScript moment. The kind of bug that makes you question
-              your entire career path.
-            </p>
-
-            {/* Sticky note callout */}
-            <div className="my-8 p-4 bg-accent border-2 border-foreground rotate-1 shadow-sm">
-              <p className="font-mono text-sm text-accent-foreground">
-                <strong>💡 Pro tip:</strong> If you're debugging at 3AM, the bug is always something stupid. Go to
-                sleep. It'll still be stupid tomorrow.
-              </p>
-            </div>
-
-            <h2 className="text-2xl font-bold mt-8 mb-4">The Conclusion 🎬</h2>
-            <p className="font-serif leading-relaxed mb-4">
-              In the end, I fixed the bug, questioned my existence, and wrote this blog post to remind myself (and you)
-              that we're all just improvising through code and life. The important thing is to keep shipping, keep
-              learning, and keep the coffee brewing.
-            </p>
           </div>
 
           {/* Tags Footer */}
           <footer className="mt-12 pt-8 border-t-2 border-foreground/20">
-            <div className="flex flex-wrap gap-2 mb-8">
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1 bg-secondary/50 border border-foreground/30 rounded-sm font-mono text-sm"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
+            {post.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-8">
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-secondary/50 border border-foreground/30 rounded-sm font-mono text-sm"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Navigation */}
             <Link
               href="/"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground font-mono font-medium border-2 border-foreground rounded-sm shadow-sm hover:shadow-md hover:-translate-y-1 transition-all"
             >
-              ← more brain dumps
+              more brain dumps
             </Link>
           </footer>
         </article>

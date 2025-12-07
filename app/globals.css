@@ -1,94 +1,113 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* Arctic Fox Light Theme - icy blues, soft whites, cool grays */
 :root {
-  --background: oklch(0.9399 0.0203 345.6985);
-  --foreground: oklch(0.4712 0 0);
-  --card: oklch(0.9498 0.0500 86.8891);
-  --card-foreground: oklch(0.4712 0 0);
-  --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.4712 0 0);
-  --primary: oklch(0.6209 0.1801 348.1385);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.8095 0.0694 198.1863);
-  --secondary-foreground: oklch(0.3211 0 0);
-  --muted: oklch(0.8800 0.0504 212.0952);
-  --muted-foreground: oklch(0.5795 0 0);
-  --accent: oklch(0.9195 0.0801 87.6670);
-  --accent-foreground: oklch(0.3211 0 0);
-  --destructive: oklch(0.7091 0.1697 21.9551);
-  --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.6209 0.1801 348.1385);
-  --input: oklch(0.9189 0 0);
-  --ring: oklch(0.7002 0.1597 350.7532);
-  --chart-1: oklch(0.7002 0.1597 350.7532);
-  --chart-2: oklch(0.8189 0.0799 212.0892);
-  --chart-3: oklch(0.9195 0.0801 87.6670);
-  --chart-4: oklch(0.7998 0.1110 348.1791);
-  --chart-5: oklch(0.6197 0.1899 353.9091);
+  /* Arctic Fox inspired palette */
+  --background: oklch(0.98 0.01 220);
+  --foreground: oklch(0.25 0.03 230);
+  --card: oklch(0.99 0.005 220);
+  --card-foreground: oklch(0.25 0.03 230);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.03 230);
+  /* Primary: Arctic ice blue */
+  --primary: oklch(0.65 0.12 220);
+  --primary-foreground: oklch(0.99 0.005 220);
+  /* Secondary: Frost blue */
+  --secondary: oklch(0.88 0.06 210);
+  --secondary-foreground: oklch(0.25 0.03 230);
+  /* Muted: Soft glacier */
+  --muted: oklch(0.94 0.02 220);
+  --muted-foreground: oklch(0.5 0.02 230);
+  /* Accent: Cool teal */
+  --accent: oklch(0.75 0.1 195);
+  --accent-foreground: oklch(0.2 0.03 230);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.99 0.005 220);
+  /* Border: Soft ice */
+  --border: oklch(0.45 0.08 220);
+  --input: oklch(0.96 0.01 220);
+  --ring: oklch(0.6 0.1 220);
+  /* Charts */
+  --chart-1: oklch(0.65 0.12 220);
+  --chart-2: oklch(0.75 0.1 195);
+  --chart-3: oklch(0.8 0.08 180);
+  --chart-4: oklch(0.7 0.15 260);
+  --chart-5: oklch(0.6 0.1 240);
   --radius: 0.4rem;
-  --sidebar: oklch(0.9140 0.0424 343.0913);
-  --sidebar-foreground: oklch(0.3211 0 0);
-  --sidebar-primary: oklch(0.6559 0.2118 354.3084);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.8228 0.1095 346.0184);
-  --sidebar-accent-foreground: oklch(0.3211 0 0);
-  --sidebar-border: oklch(0.9464 0.0327 307.1745);
-  --sidebar-ring: oklch(0.6559 0.2118 354.3084);
+  /* Sidebar */
+  --sidebar: oklch(0.96 0.02 215);
+  --sidebar-foreground: oklch(0.25 0.03 230);
+  --sidebar-primary: oklch(0.55 0.14 220);
+  --sidebar-primary-foreground: oklch(0.99 0.005 220);
+  --sidebar-accent: oklch(0.85 0.08 210);
+  --sidebar-accent-foreground: oklch(0.25 0.03 230);
+  --sidebar-border: oklch(0.9 0.03 215);
+  --sidebar-ring: oklch(0.55 0.14 220);
+  /* Shadow - Arctic blue tint */
   --shadow-x: 3px;
   --shadow-y: 3px;
   --shadow-blur: 0px;
   --shadow-spread: 0px;
   --shadow-opacity: 1;
-  --shadow-color: #D0509A;
+  --shadow-color: #7abed9;
 }
 
+/* AMOLED Dark Theme - true black with arctic blue accents */
 .dark {
-  --background: oklch(0.2497 0.0305 234.1628);
-  --foreground: oklch(0.9306 0.0197 349.0785);
-  --card: oklch(0.2902 0.0299 233.5352);
-  --card-foreground: oklch(0.9306 0.0197 349.0785);
-  --popover: oklch(0.2902 0.0299 233.5352);
-  --popover-foreground: oklch(0.9306 0.0197 349.0785);
-  --primary: oklch(0.9195 0.0801 87.6670);
-  --primary-foreground: oklch(0.2497 0.0305 234.1628);
-  --secondary: oklch(0.7794 0.0803 4.1330);
-  --secondary-foreground: oklch(0.2497 0.0305 234.1628);
-  --muted: oklch(0.2713 0.0086 255.5780);
-  --muted-foreground: oklch(0.7794 0.0803 4.1330);
-  --accent: oklch(0.6699 0.0988 356.9762);
-  --accent-foreground: oklch(0.9306 0.0197 349.0785);
-  --destructive: oklch(0.6702 0.1806 350.3599);
-  --destructive-foreground: oklch(0.2497 0.0305 234.1628);
-  --border: oklch(0.3907 0.0399 242.2181);
-  --input: oklch(0.3093 0.0305 232.0027);
-  --ring: oklch(0.6998 0.0896 201.8672);
-  --chart-1: oklch(0.6998 0.0896 201.8672);
-  --chart-2: oklch(0.7794 0.0803 4.1330);
-  --chart-3: oklch(0.6699 0.0988 356.9762);
-  --chart-4: oklch(0.4408 0.0702 217.0848);
-  --chart-5: oklch(0.2713 0.0086 255.5780);
-  --sidebar: oklch(0.2303 0.0270 235.9743);
-  --sidebar-foreground: oklch(0.9670 0.0029 264.5419);
-  --sidebar-primary: oklch(0.6559 0.2118 354.3084);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.8228 0.1095 346.0184);
-  --sidebar-accent-foreground: oklch(0.2781 0.0296 256.8480);
-  --sidebar-border: oklch(0.3729 0.0306 259.7328);
-  --sidebar-ring: oklch(0.6559 0.2118 354.3084);
-  --shadow-x: 3px;
-  --shadow-y: 3px;
-  --shadow-blur: 0px;
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.95 0.01 220);
+  --card: oklch(0.08 0.01 220);
+  --card-foreground: oklch(0.95 0.01 220);
+  --popover: oklch(0.08 0.01 220);
+  --popover-foreground: oklch(0.95 0.01 220);
+  /* Primary: Bright arctic blue for contrast on black */
+  --primary: oklch(0.75 0.14 215);
+  --primary-foreground: oklch(0 0 0);
+  /* Secondary: Soft ice glow */
+  --secondary: oklch(0.35 0.06 220);
+  --secondary-foreground: oklch(0.95 0.01 220);
+  /* Muted: Deep arctic night */
+  --muted: oklch(0.15 0.02 220);
+  --muted-foreground: oklch(0.65 0.03 220);
+  /* Accent: Glowing teal */
+  --accent: oklch(0.7 0.12 195);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.95 0.01 220);
+  /* Border: Subtle ice line */
+  --border: oklch(0.25 0.04 220);
+  --input: oklch(0.12 0.02 220);
+  --ring: oklch(0.7 0.12 215);
+  /* Charts */
+  --chart-1: oklch(0.7 0.14 215);
+  --chart-2: oklch(0.65 0.12 195);
+  --chart-3: oklch(0.6 0.1 180);
+  --chart-4: oklch(0.55 0.15 260);
+  --chart-5: oklch(0.5 0.1 240);
+  /* Sidebar */
+  --sidebar: oklch(0.05 0.01 220);
+  --sidebar-foreground: oklch(0.95 0.01 220);
+  --sidebar-primary: oklch(0.7 0.14 215);
+  --sidebar-primary-foreground: oklch(0 0 0);
+  --sidebar-accent: oklch(0.25 0.06 220);
+  --sidebar-accent-foreground: oklch(0.95 0.01 220);
+  --sidebar-border: oklch(0.18 0.03 220);
+  --sidebar-ring: oklch(0.7 0.14 215);
+  /* Shadow - subtle blue glow on AMOLED */
+  --shadow-x: 2px;
+  --shadow-y: 2px;
+  --shadow-blur: 8px;
   --shadow-spread: 0px;
-  --shadow-opacity: 1;
-  --shadow-color: #324859;
+  --shadow-opacity: 0.5;
+  --shadow-color: #3a8cb5;
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -125,15 +144,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-serif: 'Source Serif 4', 'Source Serif 4 Fallback';
+  --font-serif: "Source Serif 4", "Source Serif 4 Fallback";
   /* computed shadow variables below - do not modify */
-  --shadow-2xs: var(--shadow-x) var(--shadow-y) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-xs: var(--shadow-x) var(--shadow-y) var(--shadow-blur) var(--shadow-spread) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-sm: var(--shadow-x) var(--shadow-y) calc(var(--shadow-blur) * 1.5) var(--shadow-spread) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-md: calc(var(--shadow-x) * 2) calc(var(--shadow-y) * 2) calc(var(--shadow-blur) * 3) calc(var(--shadow-spread) - 1px) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-lg: calc(var(--shadow-x) * 4) calc(var(--shadow-y) * 4) calc(var(--shadow-blur) * 5) calc(var(--shadow-spread) - 3px) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-xl: calc(var(--shadow-x) * 6) calc(var(--shadow-y) * 6) calc(var(--shadow-blur) * 7) calc(var(--shadow-spread) - 5px) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
-  --shadow-2xl: calc(var(--shadow-x) * 8) calc(var(--shadow-y) * 8) calc(max(0px, var(--shadow-blur) * 9 - 8px)) calc(var(--shadow-spread) - 12px) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 250%), transparent);
+  --shadow-2xs: var(--shadow-x) var(--shadow-y)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-xs: var(--shadow-x) var(--shadow-y) var(--shadow-blur) var(--shadow-spread)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-sm: var(--shadow-x) var(--shadow-y) calc(var(--shadow-blur) * 1.5) var(--shadow-spread)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-md: calc(var(--shadow-x) * 2) calc(var(--shadow-y) * 2) calc(var(--shadow-blur) * 3)
+    calc(var(--shadow-spread) - 1px)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-lg: calc(var(--shadow-x) * 4) calc(var(--shadow-y) * 4) calc(var(--shadow-blur) * 5)
+    calc(var(--shadow-spread) - 3px)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-xl: calc(var(--shadow-x) * 6) calc(var(--shadow-y) * 6) calc(var(--shadow-blur) * 7)
+    calc(var(--shadow-spread) - 5px)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+  --shadow-2xl: calc(var(--shadow-x) * 8) calc(var(--shadow-y) * 8) calc(max(0px, var(--shadow-blur) * 9 - 8px))
+    calc(var(--shadow-spread) - 12px)
+    color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
   --shadow: var(--shadow-md);
   --color-shadow-color: var(--shadow-color);
   --shadow-opacity: var(--shadow-opacity);
@@ -150,4 +180,13 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* AMOLED-specific overrides for true black backgrounds */
+.amoled {
+  --background: oklch(0 0 0);
+  --card: oklch(0.06 0.01 220);
+  --popover: oklch(0.06 0.01 220);
+  --muted: oklch(0.1 0.02 220);
+  --sidebar: oklch(0.03 0.01 220);
 }

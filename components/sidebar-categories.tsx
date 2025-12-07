@@ -1,13 +1,15 @@
 import Link from "next/link"
-import { categories } from "@/lib/blog-data"
+import { getCategories } from "@/lib/blog-actions"
 import { cn } from "@/lib/utils"
 
-export function SidebarCategories() {
+export async function SidebarCategories() {
+  const categories = await getCategories()
+
   return (
     <aside className="w-full lg:w-64 shrink-0">
       <div className="sticky top-24 bg-card border-2 border-foreground rounded-sm p-4 shadow-sm">
         <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-          <span className="text-primary">📁</span> categories
+          <span className="text-primary">//</span> categories
         </h3>
 
         <div className="space-y-2">
@@ -30,7 +32,7 @@ export function SidebarCategories() {
 
         {/* Decorative sticky note */}
         <div className="mt-6 p-3 bg-accent border-2 border-foreground/50 rotate-1 shadow-xs">
-          <p className="font-mono text-xs text-accent-foreground">💡 "code is poetry written by caffeinated goblins"</p>
+          <p className="font-mono text-xs text-accent-foreground">"code is poetry written by caffeinated goblins"</p>
         </div>
       </div>
     </aside>

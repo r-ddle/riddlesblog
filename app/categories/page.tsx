@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { PostCard } from "@/components/post-card"
-import { categories, blogPosts, getPostsByCategory } from "@/lib/blog-data"
+import { getCategories, getPublishedPosts, getPostsByCategory } from "@/lib/blog-actions"
 import { cn } from "@/lib/utils"
 
 interface CategoriesPageProps {
@@ -13,17 +13,20 @@ interface CategoriesPageProps {
 export default async function CategoriesPage({ searchParams }: CategoriesPageProps) {
   const { cat } = await searchParams
   const selectedCategory = cat || null
-  const filteredPosts = selectedCategory ? getPostsByCategory(selectedCategory) : blogPosts
+
+  const [categories, allPosts] = await Promise.all([getCategories(), getPublishedPosts()])
+
+  const filteredPosts = selectedCategory ? await getPostsByCategory(selectedCategory) : allPosts
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-8">
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
         {/* Header */}
         <header className="mb-12 text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            📁 browse the <span className="text-primary">chaos</span>
+            browse the <span className="text-primary">chaos</span>
           </h1>
           <p className="font-serif text-muted-foreground text-lg">organized disorder, if you will</p>
         </header>
@@ -69,14 +72,26 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
         <Suspense fallback={<div>Loading...</div>}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPosts.map((post) => (
-              <PostCard key={post.slug} post={post} />
+              <PostCard
+                key={post.slug}
+                post={{
+                  slug: post.slug,
+                  title: post.title,
+                  excerpt: post.excerpt || "",
+                  date: new Date(post.created_at).toLocaleDateString(),
+                  readingTime: post.reading_time || "5 min",
+                  category: post.category,
+                  tags: post.tags,
+                  image: post.image_url || undefined,
+                }}
+              />
             ))}
           </div>
         </Suspense>
 
         {filteredPosts.length === 0 && (
           <div className="text-center py-16">
-            <p className="font-mono text-muted-foreground text-lg mb-4">🤷 no posts found in this category</p>
+            <p className="font-mono text-muted-foreground text-lg mb-4">no posts found in this category</p>
             <Link
               href="/categories"
               className="inline-block px-4 py-2 bg-primary text-primary-foreground font-mono text-sm border-2 border-foreground rounded-sm shadow-xs hover:shadow-sm"
