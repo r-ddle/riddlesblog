@@ -24,7 +24,7 @@ export function Navbar() {
               className="w-10 h-10 rounded-sm border-2 border-foreground group-hover:rotate-3 transition-transform"
             />
             <span className="font-bold text-xl hidden sm:block">
-              brain<span className="text-primary">dump</span>.dev
+              riddle's <span className="text-primary">ventlog</span>
             </span>
           </Link>
 
