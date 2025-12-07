@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback, useTransition } from "react"
+import type React from "react"
+import { useState, useEffect, useCallback, useTransition, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { MarkdownEditor } from "./markdown-editor"
 import { createPost, updatePost, getCategories, saveDraft } from "@/lib/blog-actions"
 import type { BlogPost, Category } from "@/lib/db"
 import {
@@ -18,12 +18,85 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Plus,
+  Trash2,
+  GripVertical,
+  Type,
+  Quote,
+  List,
+  ListOrdered,
+  Sparkles,
+  Flame,
+  Minus,
+  Code,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { CodeBlock } from "./code-block"
+
+type Block =
+  | { id: string; type: "paragraph"; text: string }
+  | { id: string; type: "heading"; level: 1 | 2 | 3; text: string }
+  | { id: string; type: "code"; language: string; code: string; caption?: string }
+  | { id: string; type: "quote"; text: string; attribution?: string }
+  | { id: string; type: "callout"; variant: "idea" | "fun" | "note" | "warn"; title?: string; text: string }
+  | { id: string; type: "list"; ordered: boolean; items: string[] }
+  | { id: string; type: "image"; url: string; alt?: string; caption?: string }
+  | { id: string; type: "divider" }
 
 interface BlogEditorProps {
   post?: BlogPost
   onClose?: () => void
+}
+
+const createId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2))
+
+const defaultBlocks: Block[] = [{ id: createId(), type: "paragraph", text: "" }]
+
+function parseBlocks(raw?: string): Block[] {
+  if (!raw) return defaultBlocks
+  try {
+    const parsed = JSON.parse(raw)
+    const blocks = Array.isArray(parsed?.blocks) ? parsed.blocks : Array.isArray(parsed) ? parsed : []
+    if (blocks.length) {
+      return blocks.map((b: any) => ({ ...b, id: b.id || createId() })) as Block[]
+    }
+  } catch (e) {
+    // ignore and fallback
+  }
+  return [{ id: createId(), type: "paragraph", text: raw }]
+}
+
+function serializeBlocks(blocks: Block[]): string {
+  return JSON.stringify({ version: "2025-12", blocks })
+}
+
+function blocksToPlainText(blocks: Block[]): string {
+  return blocks
+    .map((block) => {
+      switch (block.type) {
+        case "paragraph":
+        case "heading":
+        case "quote":
+          return block.text
+        case "callout":
+          return `${block.title || block.variant}: ${block.text}`
+        case "list":
+          return block.items.join(" ")
+        case "code":
+          return block.code
+        default:
+          return ""
+      }
+    })
+    .join(" ")
+    .trim()
+}
+
+function estimateReadingTimeFromBlocks(blocks: Block[]) {
+  const words = blocksToPlainText(blocks).split(/\s+/).filter(Boolean).length
+  return Math.max(1, Math.ceil(words / 200))
 }
 
 export function BlogEditor({ post, onClose }: BlogEditorProps) {
@@ -32,7 +105,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
 
   // Form state
   const [title, setTitle] = useState(post?.title || "")
-  const [content, setContent] = useState(post?.content || "")
+  const [blocks, setBlocks] = useState<Block[]>(parseBlocks(post?.content))
   const [excerpt, setExcerpt] = useState(post?.excerpt || "")
   const [category, setCategory] = useState(post?.category || "")
   const [tags, setTags] = useState<string[]>(post?.tags || [])
@@ -46,27 +119,21 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const serializedContent = useMemo(() => serializeBlocks(blocks), [blocks])
+  const estimatedReadingTime = estimateReadingTimeFromBlocks(blocks)
+  const wordCount = blocksToPlainText(blocks).split(/\s+/).filter(Boolean).length
+  const charCount = blocksToPlainText(blocks).length
+
   // Load categories
   useEffect(() => {
     getCategories().then(setCategories)
   }, [])
 
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (title || content) {
-        handleAutoSave()
-      }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [title, content, excerpt, category, tags, imageUrl])
-
   // Also save to localStorage as backup
   useEffect(() => {
-    const draft = { title, content, excerpt, category, tags, imageUrl }
+    const draft = { title, blocks, excerpt, category, tags, imageUrl }
     localStorage.setItem("blog-draft", JSON.stringify(draft))
-  }, [title, content, excerpt, category, tags, imageUrl])
+  }, [title, blocks, excerpt, category, tags, imageUrl])
 
   // Load from localStorage on mount (if no post)
   useEffect(() => {
@@ -76,7 +143,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
         try {
           const draft = JSON.parse(saved)
           if (draft.title) setTitle(draft.title)
-          if (draft.content) setContent(draft.content)
+          if (draft.blocks) setBlocks(draft.blocks)
           if (draft.excerpt) setExcerpt(draft.excerpt)
           if (draft.category) setCategory(draft.category)
           if (draft.tags) setTags(draft.tags)
@@ -94,7 +161,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
       await saveDraft({
         post_id: post?.id,
         title,
-        content,
+        content: serializedContent,
         excerpt,
         category,
         tags,
@@ -107,13 +174,24 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
       console.error("Auto-save failed", e)
       setAutoSaveStatus("error")
     }
-  }, [post?.id, title, content, excerpt, category, tags, imageUrl])
+  }, [post?.id, title, serializedContent, excerpt, category, tags, imageUrl])
+
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (title || serializedContent) {
+        handleAutoSave()
+      }
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [title, serializedContent, excerpt, category, tags, imageUrl, handleAutoSave])
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
     if (!title.trim()) newErrors.title = "Title is required"
-    if (!content.trim()) newErrors.content = "Content is required"
+    if (!blocksToPlainText(blocks).trim()) newErrors.content = "Content is required"
     if (!category) newErrors.category = "Category is required"
 
     setErrors(newErrors)
@@ -140,7 +218,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
         if (post) {
           await updatePost(post.id, {
             title,
-            content,
+            content: serializedContent,
             excerpt,
             category,
             tags,
@@ -150,7 +228,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
         } else {
           await createPost({
             title,
-            content,
+            content: serializedContent,
             excerpt,
             category,
             tags,
@@ -161,7 +239,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
           localStorage.removeItem("blog-draft")
         }
 
-        router.push("/admin")
+        router.push("/dashboard")
         router.refresh()
       } catch (e) {
         console.error("Failed to save post", e)
@@ -170,8 +248,6 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
     })
   }
 
-  const estimatedReadingTime = Math.ceil(content.split(/\s+/).length / 200)
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -179,7 +255,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={onClose || (() => router.push("/admin"))}
+              onClick={onClose || (() => router.push("/dashboard"))}
               className="p-2 hover:bg-secondary rounded-sm transition-colors"
             >
               <X className="w-5 h-5" />
@@ -255,7 +331,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
         {showPreview ? (
           <PostPreview
             title={title}
-            content={content}
+            blocks={blocks}
             excerpt={excerpt}
             category={category}
             tags={tags}
@@ -287,14 +363,8 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
 
               {/* Content Editor */}
               <div>
-                <label className="block font-mono text-sm font-medium mb-1.5">Content</label>
-                <MarkdownEditor
-                  value={content}
-                  onChange={setContent}
-                  onSave={handleAutoSave}
-                  placeholder="Write your post content in Markdown..."
-                  className={errors.content ? "border-destructive" : ""}
-                />
+                <label className="block font-mono text-sm font-medium mb-1.5">Content Blocks</label>
+                <BlockEditor blocks={blocks} onChange={setBlocks} />
                 {errors.content && <p className="text-destructive text-sm mt-1">{errors.content}</p>}
               </div>
             </div>
@@ -307,11 +377,11 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Words</span>
-                    <span className="font-mono">{content.split(/\s+/).filter(Boolean).length}</span>
+                    <span className="font-mono">{wordCount}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Characters</span>
-                    <span className="font-mono">{content.length}</span>
+                    <span className="font-mono">{charCount}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground flex items-center gap-1">
@@ -427,10 +497,339 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
   )
 }
 
+function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (blocks: Block[]) => void }) {
+  const updateBlock = (id: string, data: Partial<Block>) => {
+    onChange(blocks.map((b) => (b.id === id ? { ...b, ...data } as Block : b)))
+  }
+
+  const removeBlock = (id: string) => {
+    if (blocks.length === 1) return
+    onChange(blocks.filter((b) => b.id !== id))
+  }
+
+  const moveBlock = (id: string, direction: "up" | "down") => {
+    const index = blocks.findIndex((b) => b.id === id)
+    if (index === -1) return
+    const newBlocks = [...blocks]
+    const targetIndex = direction === "up" ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= blocks.length) return
+    ;[newBlocks[index], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[index]]
+    onChange(newBlocks)
+  }
+
+  const addBlock = (type: Block["type"], options?: { variant?: Block["variant"]; ordered?: boolean }) => {
+    const base: Block =
+      type === "heading"
+        ? { id: createId(), type: "heading", level: 2, text: "Heading" }
+        : type === "code"
+          ? { id: createId(), type: "code", language: "typescript", code: "// code" }
+          : type === "quote"
+            ? { id: createId(), type: "quote", text: "Quote", attribution: "" }
+            : type === "callout"
+              ? { id: createId(), type: "callout", variant: options?.variant || "idea", title: "Idea", text: "" }
+              : type === "list"
+                ? { id: createId(), type: "list", ordered: options?.ordered ?? false, items: ["List item"] }
+                : type === "image"
+                  ? { id: createId(), type: "image", url: "", alt: "", caption: "" }
+                  : type === "divider"
+                    ? { id: createId(), type: "divider" }
+                    : { id: createId(), type: "paragraph", text: "" }
+    onChange([...blocks, base])
+  }
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, idx) => (
+        <div key={block.id} className="border-2 border-foreground rounded-sm bg-card shadow-xs">
+          <div className="flex items-center justify-between px-3 py-2 border-b-2 border-foreground/30 bg-muted/40">
+            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+              <GripVertical className="w-4 h-4" />
+              <span>
+                {idx + 1}. {block.type}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => moveBlock(block.id, "up")}
+                className="p-1 hover:bg-secondary rounded-sm disabled:opacity-40"
+                disabled={idx === 0}
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveBlock(block.id, "down")}
+                className="p-1 hover:bg-secondary rounded-sm disabled:opacity-40"
+                disabled={idx === blocks.length - 1}
+              >
+                <ArrowDown className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => removeBlock(block.id)}
+                className="p-1 hover:bg-destructive/10 rounded-sm text-destructive"
+                title="Delete block"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-2">
+            <BlockFields block={block} onChange={(data) => updateBlock(block.id, data)} />
+          </div>
+        </div>
+      ))}
+
+      <div className="flex flex-wrap gap-2">
+        <AddBlockButton icon={Type} label="Paragraph" onClick={() => addBlock("paragraph")} />
+        <AddBlockButton icon={HeadingIcon} label="Heading" onClick={() => addBlock("heading")} />
+        <AddBlockButton icon={Code} label="Code" onClick={() => addBlock("code")} />
+        <AddBlockButton icon={Quote} label="Quote" onClick={() => addBlock("quote")} />
+        <AddBlockButton icon={Sparkles} label="Idea" onClick={() => addBlock("callout", { variant: "idea" })} />
+        <AddBlockButton icon={Flame} label="Fun fact" onClick={() => addBlock("callout", { variant: "fun" })} />
+        <AddBlockButton icon={List} label="List" onClick={() => addBlock("list", { ordered: false })} />
+        <AddBlockButton icon={ListOrdered} label="Numbered" onClick={() => addBlock("list", { ordered: true })} />
+        <AddBlockButton icon={ImageIcon} label="Image" onClick={() => addBlock("image")} />
+        <AddBlockButton icon={Minus} label="Divider" onClick={() => addBlock("divider")} />
+      </div>
+    </div>
+  )
+}
+
+function AddBlockButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary border-2 border-foreground rounded-sm font-mono text-xs hover:bg-secondary/80 transition-colors"
+    >
+      <Icon className="w-4 h-4" /> {label}
+    </button>
+  )
+}
+
+function BlockFields({ block, onChange }: { block: Block; onChange: (data: Partial<Block>) => void }) {
+  if (block.type === "paragraph") {
+    return (
+      <textarea
+        value={block.text}
+        onChange={(e) => onChange({ text: e.target.value })}
+        placeholder="Write your paragraph..."
+        className="w-full min-h-[120px] px-3 py-2 bg-background border-2 border-foreground rounded-sm font-sans text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+      />
+    )
+  }
+
+  if (block.type === "heading") {
+    return (
+      <div className="space-y-2">
+        <select
+          value={block.level}
+          onChange={(e) => onChange({ level: Number(e.target.value) as Block["level"] })}
+          className="px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        >
+          <option value={1}>H1</option>
+          <option value={2}>H2</option>
+          <option value={3}>H3</option>
+        </select>
+        <input
+          value={block.text}
+          onChange={(e) => onChange({ text: e.target.value })}
+          placeholder="Heading text"
+          className="w-full px-3 py-2 bg-background border-2 border-foreground rounded-sm font-sans text-sm"
+        />
+      </div>
+    )
+  }
+
+  if (block.type === "code") {
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-2 flex-wrap">
+          <input
+            value={block.language}
+            onChange={(e) => onChange({ language: e.target.value })}
+            placeholder="Language"
+            className="px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          />
+          <input
+            value={block.caption || ""}
+            onChange={(e) => onChange({ caption: e.target.value })}
+            placeholder="Filename / caption"
+            className="flex-1 min-w-[180px] px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          />
+        </div>
+        <textarea
+          value={block.code}
+          onChange={(e) => onChange({ code: e.target.value })}
+          placeholder="Code..."
+          className="w-full min-h-[180px] px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-sm"
+          spellCheck={false}
+        />
+      </div>
+    )
+  }
+
+  if (block.type === "quote") {
+    return (
+      <div className="space-y-2">
+        <textarea
+          value={block.text}
+          onChange={(e) => onChange({ text: e.target.value })}
+          placeholder="Quote text"
+          className="w-full min-h-[120px] px-3 py-2 bg-background border-2 border-foreground rounded-sm font-serif text-sm"
+        />
+        <input
+          value={block.attribution || ""}
+          onChange={(e) => onChange({ attribution: e.target.value })}
+          placeholder="Attribution (optional)"
+          className="w-full px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        />
+      </div>
+    )
+  }
+
+  if (block.type === "callout") {
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-2 flex-wrap">
+          <select
+            value={block.variant}
+            onChange={(e) => onChange({ variant: e.target.value as Block["variant"] })}
+            className="px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          >
+            <option value="idea">Idea</option>
+            <option value="fun">Fun fact</option>
+            <option value="note">Note</option>
+            <option value="warn">Warning</option>
+          </select>
+          <input
+            value={block.title || ""}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="Title"
+            className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          />
+        </div>
+        <textarea
+          value={block.text}
+          onChange={(e) => onChange({ text: e.target.value })}
+          placeholder="Callout text"
+          className="w-full min-h-[120px] px-3 py-2 bg-background border-2 border-foreground rounded-sm text-sm"
+        />
+      </div>
+    )
+  }
+
+  if (block.type === "list") {
+    return (
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <label className="inline-flex items-center gap-2 text-xs font-mono">
+            <input
+              type="checkbox"
+              checked={block.ordered}
+              onChange={(e) => onChange({ ordered: e.target.checked })}
+              className="accent-foreground"
+            />
+            Ordered list
+          </label>
+        </div>
+        <div className="space-y-2">
+          {block.items.map((item, index) => (
+            <div key={index} className="flex gap-2 items-start">
+              <input
+                type="text"
+                value={item}
+                onChange={(e) => {
+                  const newItems = [...block.items]
+                  newItems[index] = e.target.value
+                  onChange({ items: newItems })
+                }}
+                placeholder="List item..."
+                className="flex-1 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-sans text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const newItems = block.items.filter((_, i) => i !== index)
+                  onChange({ items: newItems })
+                }}
+                className="px-2 py-2 bg-destructive/20 border-2 border-destructive rounded-sm hover:bg-destructive/30 transition-colors"
+                title="Remove item"
+              >
+                <X className="w-4 h-4 text-destructive" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange({ items: [...block.items, ""] })}
+          className="w-full px-3 py-2 bg-secondary border-2 border-foreground rounded-sm font-mono text-sm hover:bg-secondary/80 transition-colors"
+        >
+          + Add item
+        </button>
+      </div>
+    )
+  }
+
+  if (block.type === "image") {
+    return (
+      <div className="space-y-2">
+        <input
+          value={block.url}
+          onChange={(e) => onChange({ url: e.target.value })}
+          placeholder="Image URL"
+          className="w-full px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        />
+        <div className="flex gap-2 flex-wrap">
+          <input
+            value={block.alt || ""}
+            onChange={(e) => onChange({ alt: e.target.value })}
+            placeholder="Alt text"
+            className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          />
+          <input
+            value={block.caption || ""}
+            onChange={(e) => onChange({ caption: e.target.value })}
+            placeholder="Caption"
+            className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          />
+        </div>
+        {block.url && (
+          <div className="relative aspect-video bg-muted rounded overflow-hidden border border-foreground/20">
+            <img src={block.url} alt={block.alt || "preview"} className="w-full h-full object-cover" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (block.type === "divider") {
+    return <div className="h-2" />
+  }
+
+  return null
+}
+
+function HeadingIcon(props: { className?: string }) {
+  return <span className={cn("font-mono text-xs", props.className)}>H</span>
+}
+
 // Post Preview Component
 function PostPreview({
   title,
-  content,
+  blocks,
   excerpt,
   category,
   tags,
@@ -438,57 +837,26 @@ function PostPreview({
   readingTime,
 }: {
   title: string
-  content: string
+  blocks: Block[]
   excerpt: string
   category: string
   tags: string[]
   imageUrl: string
   readingTime: string
 }) {
-  const parseMarkdown = (md: string): string => {
-    return md
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(
-        /```(\w+)?\n([\s\S]*?)```/g,
-        '<pre class="bg-muted p-4 rounded-sm overflow-x-auto border-2 border-foreground my-4"><code class="text-sm">$2</code></pre>',
-      )
-      .replace(/`([^`]+)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
-      .replace(/^### (.*)$/gm, '<h3 class="text-lg font-bold mt-6 mb-2">$1</h3>')
-      .replace(/^## (.*)$/gm, '<h2 class="text-xl font-bold mt-8 mb-3">$1</h2>')
-      .replace(/^# (.*)$/gm, '<h1 class="text-2xl font-bold mt-8 mb-4">$1</h1>')
-      .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/\[([^\]]+)\]$$([^)]+)$$/g, '<a href="$2" class="text-primary underline hover:no-underline">$1</a>')
-      .replace(
-        /!\[([^\]]*)\]$$([^)]+)$$/g,
-        '<img src="$2" alt="$1" class="rounded-sm border-2 border-foreground my-4" />',
-      )
-      .replace(
-        /^&gt; (.*)$/gm,
-        '<blockquote class="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground">$1</blockquote>',
-      )
-      .replace(/^---$/gm, '<hr class="border-t-2 border-foreground my-8" />')
-      .replace(/^- (.*)$/gm, '<li class="ml-4">$1</li>')
-      .replace(/^\d+\. (.*)$/gm, '<li class="ml-4 list-decimal">$1</li>')
-      .replace(/\n\n/g, "</p><p class='my-4'>")
-  }
-
   return (
     <article className="max-w-3xl mx-auto">
-      <div className="bg-card border-2 border-foreground rounded-sm shadow-sm p-6 md:p-8">
+      <div className="bg-card border-2 border-foreground rounded-sm shadow-sm p-6 md:p-8 space-y-6">
         {/* Header */}
-        <header className="mb-8">
+        <header className="space-y-3">
           {category && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border-2 border-foreground/50 rounded-sm font-mono text-xs mb-4 rotate-[-1deg]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/20 border-2 border-foreground/50 rounded-sm font-mono text-xs mb-4 -rotate-1">
               {category}
             </span>
           )}
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">{title || "Untitled Post"}</h1>
-          {excerpt && <p className="text-lg text-muted-foreground font-serif">{excerpt}</p>}
-          <div className="flex items-center gap-3 mt-4 font-mono text-sm text-muted-foreground">
+          <h1 className="text-3xl md:text-4xl font-bold leading-tight">{title || "Untitled Post"}</h1>
+          {excerpt && <p className="text-lg text-muted-foreground font-serif leading-relaxed">{excerpt}</p>}
+          <div className="flex items-center gap-3 font-mono text-sm text-muted-foreground">
             <span>{new Date().toLocaleDateString()}</span>
             <span className="text-primary">|</span>
             <span>{readingTime}</span>
@@ -497,20 +865,21 @@ function PostPreview({
 
         {/* Featured Image */}
         {imageUrl && (
-          <div className="relative mb-8 bg-white p-3 border-2 border-foreground/20 shadow-xs rotate-[0.5deg]">
+          <div className="relative bg-white p-3 border-2 border-foreground/20 shadow-xs -rotate-1">
             <img src={imageUrl || "/placeholder.svg"} alt={title} className="w-full aspect-video object-cover" />
           </div>
         )}
 
         {/* Content */}
-        <div
-          className="prose prose-sm md:prose-base max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: `<p class='my-4'>${parseMarkdown(content)}</p>` }}
-        />
+        <div className="space-y-4">
+          {blocks.map((block) => (
+            <BlockPreview key={block.id} block={block} />
+          ))}
+        </div>
 
         {/* Tags */}
         {tags.length > 0 && (
-          <div className="mt-8 pt-6 border-t-2 border-foreground/20">
+          <div className="pt-6 border-t-2 border-foreground/20">
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
                 <span
@@ -526,4 +895,73 @@ function PostPreview({
       </div>
     </article>
   )
+}
+
+function BlockPreview({ block }: { block: Block }) {
+  switch (block.type) {
+    case "paragraph":
+      return <p className="font-serif leading-relaxed text-base">{block.text}</p>
+    case "heading": {
+      const Tag = `h${block.level}` as keyof JSX.IntrinsicElements
+      return <Tag className="font-bold text-2xl mt-4">{block.text}</Tag>
+    }
+    case "code":
+      return <CodeBlock code={block.code} language={block.language} filename={block.caption} />
+    case "quote":
+      return (
+        <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">
+          <p>{block.text}</p>
+          {block.attribution && <p className="font-mono text-xs mt-2">— {block.attribution}</p>}
+        </blockquote>
+      )
+    case "callout":
+      return (
+        <div
+          className={cn(
+            "p-4 border-2 rounded-sm",
+            block.variant === "idea" && "border-primary/60 bg-primary/10",
+            block.variant === "fun" && "border-accent/60 bg-accent/10",
+            block.variant === "note" && "border-foreground/40 bg-muted/30",
+            block.variant === "warn" && "border-destructive/60 bg-destructive/10",
+          )}
+        >
+          <div className="font-mono text-xs uppercase tracking-wide mb-1">{block.title || block.variant}</div>
+          <p className="text-sm leading-relaxed">{block.text}</p>
+        </div>
+      )
+    case "list":
+      if (block.ordered) {
+        return (
+          <ol className="list-decimal pl-6 space-y-1">
+            {block.items.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ol>
+        )
+      }
+      return (
+        <ul className="list-disc pl-6 space-y-1">
+          {block.items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      )
+    case "image":
+      return (
+        <figure className="space-y-2">
+          <img
+            src={block.url || "/placeholder.svg"}
+            alt={block.alt || "image"}
+            className="w-full rounded-sm border-2 border-foreground/40"
+          />
+          {(block.caption || block.alt) && (
+            <figcaption className="text-xs text-muted-foreground font-mono">{block.caption || block.alt}</figcaption>
+          )}
+        </figure>
+      )
+    case "divider":
+      return <hr className="border-t-2 border-foreground/30 my-6" />
+    default:
+      return null
+  }
 }

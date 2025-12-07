@@ -1,5 +1,5 @@
-import { BlogEditor } from "@/components/blog-editor"
+import { redirect } from "next/navigation"
 
 export default function NewPostPage() {
-  return <BlogEditor />
+  redirect("/dashboard/new")
 }

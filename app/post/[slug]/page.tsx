@@ -5,7 +5,9 @@ import { ArrowLeft } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { CategoryTag } from "@/components/category-tag"
+import { CodeBlock } from "@/components/code-block"
 import { getPostBySlug, getPublishedPosts } from "@/lib/blog-actions"
+import { cn } from "@/lib/utils"
 
 interface PostPageProps {
   params: Promise<{ slug: string }>
@@ -16,6 +18,27 @@ export async function generateStaticParams() {
   return posts.map((post) => ({
     slug: post.slug,
   }))
+}
+
+type Block =
+  | { id?: string; type: "paragraph"; text: string }
+  | { id?: string; type: "heading"; level: 1 | 2 | 3; text: string }
+  | { id?: string; type: "code"; language: string; code: string; caption?: string }
+  | { id?: string; type: "quote"; text: string; attribution?: string }
+  | { id?: string; type: "callout"; variant: "idea" | "fun" | "note" | "warn"; title?: string; text: string }
+  | { id?: string; type: "list"; ordered: boolean; items: string[] }
+  | { id?: string; type: "image"; url: string; alt?: string; caption?: string }
+  | { id?: string; type: "divider" }
+
+function tryParseBlocks(content: string): Block[] | null {
+  try {
+    const parsed = JSON.parse(content)
+    const blocks = Array.isArray(parsed?.blocks) ? parsed.blocks : Array.isArray(parsed) ? parsed : null
+    if (blocks) return blocks as Block[]
+  } catch (e) {
+    // not JSON
+  }
+  return null
 }
 
 // Parse markdown to HTML
@@ -61,7 +84,8 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound()
   }
 
-  const htmlContent = parseMarkdown(post.content)
+  const blocks = tryParseBlocks(post.content)
+  const htmlContent = blocks ? null : parseMarkdown(post.content)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -113,7 +137,7 @@ export default async function PostPage({ params }: PostPageProps) {
           {/* Featured Image - Polaroid style */}
           {post.image_url && (
             <div className="mb-8 p-3 bg-white dark:bg-card border-2 border-foreground shadow-sm rotate-[-0.5deg]">
-              <div className="relative aspect-[16/9] overflow-hidden">
+              <div className="relative aspect-video overflow-hidden">
                 <Image
                   src={post.image_url || "/placeholder.svg"}
                   alt={post.title}
@@ -152,10 +176,18 @@ export default async function PostPage({ params }: PostPageProps) {
             )}
 
             {/* Content */}
-            <div
-              className="space-y-4"
-              dangerouslySetInnerHTML={{ __html: `<p class="my-4 font-serif leading-relaxed">${htmlContent}</p>` }}
-            />
+            {blocks ? (
+              <div className="space-y-4">
+                {blocks.map((block, idx) => (
+                  <BlockRenderer key={block.id ?? idx} block={block} />
+                ))}
+              </div>
+            ) : (
+              <div
+                className="space-y-4"
+                dangerouslySetInnerHTML={{ __html: `<p class="my-4 font-serif leading-relaxed">${htmlContent}</p>` }}
+              />
+            )}
           </div>
 
           {/* Tags Footer */}
@@ -187,4 +219,73 @@ export default async function PostPage({ params }: PostPageProps) {
       <Footer />
     </div>
   )
+}
+
+function BlockRenderer({ block }: { block: Block }) {
+  switch (block.type) {
+    case "paragraph":
+      return <p className="font-serif leading-relaxed">{block.text}</p>
+    case "heading": {
+      const Tag = `h${block.level}` as keyof JSX.IntrinsicElements
+      return <Tag className="font-bold text-2xl mt-6">{block.text}</Tag>
+    }
+    case "code":
+      return <CodeBlock code={block.code} language={block.language} filename={block.caption} />
+    case "quote":
+      return (
+        <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">
+          <p>{block.text}</p>
+          {block.attribution && <p className="font-mono text-xs mt-2">— {block.attribution}</p>}
+        </blockquote>
+      )
+    case "callout":
+      return (
+        <div
+          className={cn(
+            "p-4 border-2 rounded-sm",
+            block.variant === "idea" && "border-primary/60 bg-primary/10",
+            block.variant === "fun" && "border-accent/60 bg-accent/10",
+            block.variant === "note" && "border-foreground/40 bg-muted/30",
+            block.variant === "warn" && "border-destructive/60 bg-destructive/10",
+          )}
+        >
+          <div className="font-mono text-xs uppercase tracking-wide mb-1">{block.title || block.variant}</div>
+          <p className="text-sm leading-relaxed">{block.text}</p>
+        </div>
+      )
+    case "list":
+      if (block.ordered) {
+        return (
+          <ol className="list-decimal pl-6 space-y-1">
+            {block.items.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ol>
+        )
+      }
+      return (
+        <ul className="list-disc pl-6 space-y-1">
+          {block.items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      )
+    case "image":
+      return (
+        <figure className="space-y-2">
+          <img
+            src={block.url || "/placeholder.svg"}
+            alt={block.alt || "image"}
+            className="w-full rounded-sm border-2 border-foreground/40"
+          />
+          {(block.caption || block.alt) && (
+            <figcaption className="text-xs text-muted-foreground font-mono">{block.caption || block.alt}</figcaption>
+          )}
+        </figure>
+      )
+    case "divider":
+      return <hr className="border-t-2 border-foreground/30 my-6" />
+    default:
+      return null
+  }
 }

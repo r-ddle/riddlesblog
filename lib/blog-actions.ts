@@ -1,6 +1,7 @@
 "use server"
 
 import { sql, type BlogPost, type Category, type BlogDraft } from "./db"
+import { requireAdminSession } from "./auth"
 import { revalidatePath } from "next/cache"
 
 // Helper to generate slug from title
@@ -12,27 +13,68 @@ function generateSlug(title: string): string {
 }
 
 // Helper to estimate reading time
+function extractPlainText(content: string): string {
+  if (!content) return ""
+  try {
+    const parsed = JSON.parse(content)
+    const blocks = Array.isArray(parsed?.blocks) ? parsed.blocks : Array.isArray(parsed) ? parsed : null
+    if (blocks) {
+      const textPieces = blocks.flatMap((block: any) => {
+        switch (block.type) {
+          case "paragraph":
+          case "heading":
+          case "quote":
+          case "callout":
+          case "idea":
+          case "funfact":
+            return [block.text || ""]
+          case "list":
+            return Array.isArray(block.items) ? block.items : []
+          case "code":
+            return [block.code || ""]
+          default:
+            return []
+        }
+      })
+      return textPieces.join(" ").trim()
+    }
+  } catch (err) {
+    // fall through to raw content
+  }
+  return content
+}
+
 function estimateReadingTime(content: string): string {
+  const plain = extractPlainText(content)
   const wordsPerMinute = 200
-  const words = content.split(/\s+/).length
-  const minutes = Math.ceil(words / wordsPerMinute)
+  const words = plain.split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.ceil(words / wordsPerMinute))
   return `${minutes} min`
 }
 
 // Get all published posts
 export async function getPublishedPosts(): Promise<BlogPost[]> {
-  const posts = await sql`
-    SELECT * FROM blog_posts 
-    WHERE published = true 
-    ORDER BY created_at DESC
-  `
-  return posts as BlogPost[]
+  try {
+    const posts = await sql`
+      SELECT * FROM blog_posts
+      WHERE published = true
+      ORDER BY created_at DESC
+    `
+    return posts as BlogPost[]
+  } catch (error: any) {
+    if (error?.message?.includes("DATABASE_URL") || error?.message?.includes("not configured")) {
+      console.warn("Database not configured, returning empty posts")
+      return []
+    }
+    throw error
+  }
 }
 
 // Get all posts (including drafts) for admin
 export async function getAllPosts(): Promise<BlogPost[]> {
+  await requireAdminSession()
   const posts = await sql`
-    SELECT * FROM blog_posts 
+    SELECT * FROM blog_posts
     ORDER BY created_at DESC
   `
   return posts as BlogPost[]
@@ -40,31 +82,55 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 
 // Get single post by slug
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  const posts = await sql`
-    SELECT * FROM blog_posts 
-    WHERE slug = ${slug} 
-    LIMIT 1
-  `
-  return (posts[0] as BlogPost) || null
+  try {
+    const posts = await sql`
+      SELECT * FROM blog_posts
+      WHERE slug = ${slug}
+      LIMIT 1
+    `
+    return (posts[0] as BlogPost) || null
+  } catch (error: any) {
+    if (error?.message?.includes("DATABASE_URL") || error?.message?.includes("not configured")) {
+      console.warn("Database not configured, returning null post")
+      return null
+    }
+    throw error
+  }
 }
 
 // Get posts by category
 export async function getPostsByCategory(category: string): Promise<BlogPost[]> {
-  const posts = await sql`
-    SELECT * FROM blog_posts 
-    WHERE category = ${category} AND published = true
-    ORDER BY created_at DESC
-  `
-  return posts as BlogPost[]
+  try {
+    const posts = await sql`
+      SELECT * FROM blog_posts
+      WHERE category = ${category} AND published = true
+      ORDER BY created_at DESC
+    `
+    return posts as BlogPost[]
+  } catch (error: any) {
+    if (error?.message?.includes("DATABASE_URL") || error?.message?.includes("not configured")) {
+      console.warn("Database not configured, returning empty posts")
+      return []
+    }
+    throw error
+  }
 }
 
 // Get all categories
 export async function getCategories(): Promise<Category[]> {
-  const categories = await sql`
-    SELECT * FROM categories 
-    ORDER BY name ASC
-  `
-  return categories as Category[]
+  try {
+    const categories = await sql`
+      SELECT * FROM categories
+      ORDER BY name ASC
+    `
+    return categories as Category[]
+  } catch (error: any) {
+    if (error?.message?.includes("DATABASE_URL") || error?.message?.includes("not configured")) {
+      console.warn("Database not configured, returning empty categories")
+      return []
+    }
+    throw error
+  }
 }
 
 // Create new post
@@ -77,20 +143,21 @@ export async function createPost(data: {
   image_url?: string
   published?: boolean
 }): Promise<BlogPost> {
+  await requireAdminSession()
   const slug = generateSlug(data.title)
   const reading_time = estimateReadingTime(data.content)
 
   const posts = await sql`
     INSERT INTO blog_posts (slug, title, content, excerpt, category, tags, image_url, reading_time, published)
     VALUES (
-      ${slug}, 
-      ${data.title}, 
-      ${data.content}, 
-      ${data.excerpt || null}, 
-      ${data.category}, 
-      ${data.tags || []}, 
-      ${data.image_url || null}, 
-      ${reading_time}, 
+      ${slug},
+      ${data.title},
+      ${data.content},
+      ${data.excerpt || null},
+      ${data.category},
+      ${data.tags || []},
+      ${data.image_url || null},
+      ${reading_time},
       ${data.published || false}
     )
     RETURNING *
@@ -116,12 +183,13 @@ export async function updatePost(
     published?: boolean
   },
 ): Promise<BlogPost> {
+  await requireAdminSession()
   const slug = data.title ? generateSlug(data.title) : undefined
   const reading_time = data.content ? estimateReadingTime(data.content) : undefined
 
   const posts = await sql`
-    UPDATE blog_posts 
-    SET 
+    UPDATE blog_posts
+    SET
       title = COALESCE(${data.title ?? null}, title),
       slug = COALESCE(${slug ?? null}, slug),
       content = COALESCE(${data.content ?? null}, content),
@@ -146,6 +214,7 @@ export async function updatePost(
 
 // Delete post
 export async function deletePost(id: number): Promise<void> {
+  await requireAdminSession()
   await sql`DELETE FROM blog_posts WHERE id = ${id}`
 
   revalidatePath("/")
@@ -155,8 +224,9 @@ export async function deletePost(id: number): Promise<void> {
 
 // Toggle publish status
 export async function togglePublishStatus(id: number): Promise<BlogPost> {
+  await requireAdminSession()
   const posts = await sql`
-    UPDATE blog_posts 
+    UPDATE blog_posts
     SET published = NOT published, updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
@@ -179,13 +249,14 @@ export async function saveDraft(data: {
   tags?: string[]
   image_url?: string
 }): Promise<BlogDraft> {
+  await requireAdminSession()
   if (data.post_id) {
     // Update existing draft
     const drafts = await sql`
       INSERT INTO blog_drafts (post_id, title, content, excerpt, category, tags, image_url)
       VALUES (${data.post_id}, ${data.title || null}, ${data.content || null}, ${data.excerpt || null}, ${data.category || null}, ${data.tags || []}, ${data.image_url || null})
-      ON CONFLICT (post_id) 
-      DO UPDATE SET 
+      ON CONFLICT (post_id)
+      DO UPDATE SET
         title = ${data.title || null},
         content = ${data.content || null},
         excerpt = ${data.excerpt || null},
@@ -209,6 +280,7 @@ export async function saveDraft(data: {
 
 // Get draft for a post
 export async function getDraft(postId: number): Promise<BlogDraft | null> {
+  await requireAdminSession()
   const drafts = await sql`
     SELECT * FROM blog_drafts WHERE post_id = ${postId} LIMIT 1
   `
@@ -221,16 +293,16 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
 
   // Use PostgreSQL full-text search with fuzzy matching
   const posts = await sql`
-    SELECT *, 
+    SELECT *,
       ts_rank(
         to_tsvector('english', coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(content, '')),
         plainto_tsquery('english', ${query})
       ) as rank,
       similarity(lower(title), lower(${query})) as title_sim
-    FROM blog_posts 
+    FROM blog_posts
     WHERE published = true
       AND (
-        to_tsvector('english', coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(content, '')) 
+        to_tsvector('english', coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(content, ''))
         @@ plainto_tsquery('english', ${query})
         OR lower(title) LIKE ${`%${query.toLowerCase()}%`}
         OR lower(excerpt) LIKE ${`%${query.toLowerCase()}%`}
@@ -245,6 +317,7 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
 
 // Add new category
 export async function addCategory(data: { name: string; emoji?: string; color?: string }): Promise<Category> {
+  await requireAdminSession()
   const categories = await sql`
     INSERT INTO categories (name, emoji, color)
     VALUES (${data.name}, ${data.emoji || null}, ${data.color || "bg-primary/20"})

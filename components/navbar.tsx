@@ -4,11 +4,13 @@ import type React from "react"
 
 import Link from "next/link"
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import { Search, Menu, X, PenTool } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { data: session } = useSession()
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b-2 border-foreground">
@@ -32,9 +34,11 @@ export function Navbar() {
             <NavLink href="/">home</NavLink>
             <NavLink href="/categories">categories</NavLink>
             <NavLink href="/about">about</NavLink>
-            <NavLink href="/admin">
-              <PenTool className="w-4 h-4" />
-            </NavLink>
+            {session && (
+              <NavLink href="/dashboard">
+                <PenTool className="w-4 h-4" />
+              </NavLink>
+            )}
             <NavLink href="/search">
               <Search className="w-4 h-4" />
             </NavLink>
@@ -66,9 +70,11 @@ export function Navbar() {
               <MobileNavLink href="/about" onClick={() => setIsMenuOpen(false)}>
                 about
               </MobileNavLink>
-              <MobileNavLink href="/admin" onClick={() => setIsMenuOpen(false)}>
-                create post
-              </MobileNavLink>
+              {session && (
+                <MobileNavLink href="/dashboard" onClick={() => setIsMenuOpen(false)}>
+                  dashboard
+                </MobileNavLink>
+              )}
               <MobileNavLink href="/search" onClick={() => setIsMenuOpen(false)}>
                 search
               </MobileNavLink>

@@ -1,3 +1,5 @@
+import { SpotifyBadge } from "./spotify-badge"
+
 export function HeroSection() {
   return (
     <section className="relative py-12 md:py-16 overflow-hidden">
@@ -10,11 +12,7 @@ export function HeroSection() {
 
       <div className="relative max-w-3xl mx-auto text-center px-4">
         {/* Quirky intro badge */}
-        <div className="inline-block mb-6">
-          <span className="font-mono text-sm bg-primary text-primary-foreground px-4 py-2 border-2 border-foreground shadow-xs rotate-[-2deg] inline-block">
-            ⚡ terminal therapy session loading...
-          </span>
-        </div>
+        <SpotifyBadge />
 
         {/* Main heading */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-balance">

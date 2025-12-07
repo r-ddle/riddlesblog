@@ -1,6 +1,15 @@
 import { neon } from "@neondatabase/serverless"
 
-export const sql = neon(process.env.DATABASE_URL!)
+const dbUrl = process.env.DATABASE_URL
+
+// Only initialize if we have a valid connection string
+export const sql = dbUrl && dbUrl !== "your_database_url_here"
+  ? neon(dbUrl)
+  : (async () => {
+      throw new Error(
+        "DATABASE_URL is not configured. Please set it in .env.local with a valid Neon connection string."
+      )
+    })
 
 export interface BlogPost {
   id: number

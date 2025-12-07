@@ -63,7 +63,7 @@ export function AdminDashboard({ posts, categories }: AdminDashboardProps) {
           <p className="text-muted-foreground font-mono text-sm">Manage your posts and drafts</p>
         </div>
         <Link
-          href="/admin/new"
+          href="/dashboard/new"
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-sm font-medium border-2 border-foreground rounded-sm shadow-xs hover:shadow-sm hover:-translate-y-0.5 transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -131,7 +131,7 @@ export function AdminDashboard({ posts, categories }: AdminDashboardProps) {
             </p>
             {!searchQuery && !filterCategory && filterStatus === "all" && (
               <Link
-                href="/admin/new"
+                href="/dashboard/new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-sm border-2 border-foreground rounded-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -168,7 +168,7 @@ export function AdminDashboard({ posts, categories }: AdminDashboardProps) {
                     </div>
 
                     <Link
-                      href={`/admin/edit/${post.id}`}
+                      href={`/dashboard/edit/${post.id}`}
                       className="font-bold hover:text-primary transition-colors line-clamp-1"
                     >
                       {post.title}
@@ -208,7 +208,7 @@ export function AdminDashboard({ posts, categories }: AdminDashboardProps) {
                         <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
                         <div className="absolute right-0 top-full mt-1 z-20 w-40 bg-card border-2 border-foreground rounded-sm shadow-sm overflow-hidden">
                           <Link
-                            href={`/admin/edit/${post.id}`}
+                            href={`/dashboard/edit/${post.id}`}
                             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors"
                             onClick={() => setActiveMenu(null)}
                           >
