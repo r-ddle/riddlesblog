@@ -16,25 +16,24 @@ export function HeroSection() {
 
         {/* Main heading */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-balance">
-          debugging my{" "}
+          Hello welcome to my{" "}
           <span className="text-primary underline decoration-wavy decoration-accent underline-offset-4">
-            mental capacity
+            ventlog
           </span>{" "}
-          one commit at a time
         </h1>
 
         {/* Subheading */}
         <p className="text-lg md:text-xl text-muted-foreground font-serif mb-8 max-w-2xl mx-auto text-pretty">
-          chaotic tech insights, random rants nobody asked for, and sarcastic breakdowns of everything from Sri Lankan
-          ecommerce to 3AM debugging sessions.
+          chaotic tech insights, random rants nobody asked for, and breakdowns of everyday life.
         </p>
 
         {/* CTA Tags */}
         <div className="flex flex-wrap justify-center gap-3">
-          <TagPill emoji="🧠" text="brain dumps" />
-          <TagPill emoji="🛒" text="ecom chaos" />
-          <TagPill emoji="🐛" text="bug stories" />
-          <TagPill emoji="💭" text="tech philosophy" />
+          <TagPill emoji="📅" text="daily update" />
+          <TagPill emoji="💡" text="dev update" />
+          <TagPill emoji="🔥" text="hate" />
+          <TagPill emoji="💭" text="random rants" />
+          <TagPill emoji="🧑‍💻" text="techy" />
         </div>
       </div>
 

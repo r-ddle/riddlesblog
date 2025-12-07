@@ -13,8 +13,8 @@ interface SpotifyTrack {
 
 const FALLBACK_TRACK = {
   trackId: "37de7PiZODyk476tuvStLq",
-  name: "Your Favorite Song",
-  artist: "Your Favorite Artist",
+  name: "TELEPATHIC LOVE",
+  artist: "Clara La San",
 }
 
 export function SpotifyBadge() {
@@ -96,12 +96,12 @@ export function SpotifyBadge() {
         <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50">
           <iframe
             src={`https://open.spotify.com/embed/track/${track.trackId}?utm_source=generator`}
-            width="300"
+            width="350"
             height="80"
             frameBorder="0"
             allowFullScreen
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            className="rounded-sm border-2 border-foreground shadow-lg"
+            className="shadow-lg"
           />
         </div>
       )}

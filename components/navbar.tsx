@@ -16,14 +16,13 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b-2 border-foreground">
       <div className="max-w-6xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          {/* Logo with quirky doodle accent */}
+          {/* Logo with GitHub profile image */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative">
-              <div className="w-10 h-10 bg-primary rounded-sm shadow-xs flex items-center justify-center text-primary-foreground font-mono font-bold text-lg border-2 border-foreground group-hover:rotate-3 transition-transform">
-                {"</>"}
-              </div>
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border border-foreground" />
-            </div>
+            <img
+              src="https://github.com/r-ddle.png"
+              alt="riddle"
+              className="w-10 h-10 rounded-sm border-2 border-foreground group-hover:rotate-3 transition-transform"
+            />
             <span className="font-bold text-xl hidden sm:block">
               brain<span className="text-primary">dump</span>.dev
             </span>

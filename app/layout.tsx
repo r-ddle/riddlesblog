@@ -14,26 +14,34 @@ const _geistMono = V0_Font_Geist_Mono({ subsets: ['latin'], weight: ["100","200"
 const _sourceSerif_4 = V0_Font_Source_Serif_4({ subsets: ['latin'], weight: ["200","300","400","500","600","700","800","900"] })
 
 export const metadata: Metadata = {
-  title: "braindump.dev | terminal therapy sessions",
+  title: "riddle's ventlog",
   description:
-    "Chaotic tech insights, debugging logs, and sarcastic breakdowns from a Gen-Z Sri Lankan developer. Random rants nobody asked for.",
-  generator: "v0.app",
+    "I work a 9-5, play games that fit my vibe and love to code. Wait did I forget to mention I game?",
   icons: {
-    icon: [
+    icon: "https://github.com/r-ddle.png",
+  },
+  openGraph: {
+    title: "riddle's ventlog",
+    description:
+      "I work a 9-5, play games that fit my vibe and love to code. Wait did I forget to mention I game?",
+    url: "https://blog.r-ddle.dev",
+    siteName: "riddle's ventlog",
+    images: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
+        url: "https://i.imgur.com/kwHJp29.gif",
+        width: 1200,
+        height: 630,
+        alt: "riddle's ventlog banner",
       },
     ],
-    apple: "/apple-icon.png",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "riddle's ventlog",
+    description:
+      "I work a 9-5, play games that fit my vibe and love to code. Wait did I forget to mention I game?",
+    images: ["https://i.imgur.com/kwHJp29.gif"],
   },
 }
 
