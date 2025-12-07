@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback, useTransition, useMemo } from "react"
+import { useState, useEffect, useCallback, useTransition, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createPost, updatePost, getCategories, saveDraft } from "@/lib/blog-actions"
+import { createPost, updatePost, getCategories } from "@/lib/blog-actions"
 import type { BlogPost, Category } from "@/lib/db"
 import {
   Save,
@@ -17,8 +17,6 @@ import {
   Eye,
   Loader2,
   CheckCircle,
-  AlertCircle,
-  Plus,
   Trash2,
   GripVertical,
   Type,
@@ -43,7 +41,16 @@ type Block =
   | { id: string; type: "quote"; text: string; attribution?: string }
   | { id: string; type: "callout"; variant: "idea" | "fun" | "note" | "warn"; title?: string; text: string }
   | { id: string; type: "list"; ordered: boolean; items: string[] }
-  | { id: string; type: "image"; url: string; alt?: string; caption?: string }
+  | {
+      id: string
+      type: "image"
+      url: string
+      alt?: string
+      caption?: string
+      fit?: "fixed" | "natural"
+      size?: "full" | "large" | "medium" | "small"
+      widthPercent?: number
+    }
   | { id: string; type: "divider" }
 
 interface BlogEditorProps {
@@ -116,7 +123,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
 
   // UI state
   const [showPreview, setShowPreview] = useState(false)
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -130,10 +137,29 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
     getCategories().then(setCategories)
   }, [])
 
-  // Also save to localStorage as backup
+  // Debounced local-only autosave (2s after user stops typing)
   useEffect(() => {
-    const draft = { title, blocks, excerpt, category, tags, imageUrl }
-    localStorage.setItem("blog-draft", JSON.stringify(draft))
+    // nothing to save
+    if (!title && !blocksToPlainText(blocks) && !excerpt && !category && tags.length === 0 && !imageUrl) {
+      return
+    }
+
+    setAutoSaveStatus("saving")
+
+    let resetTimeout: ReturnType<typeof setTimeout> | undefined
+    const handler = setTimeout(() => {
+      const draft = { title, blocks, excerpt, category, tags, imageUrl }
+      localStorage.setItem("blog-draft", JSON.stringify(draft))
+      setAutoSaveStatus("saved")
+      setLastSaved(new Date())
+
+      resetTimeout = setTimeout(() => setAutoSaveStatus("idle"), 2000)
+    }, 2000)
+
+    return () => {
+      clearTimeout(handler)
+      if (resetTimeout) clearTimeout(resetTimeout)
+    }
   }, [title, blocks, excerpt, category, tags, imageUrl])
 
   // Load from localStorage on mount (if no post)
@@ -156,37 +182,7 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
     }
   }, [post])
 
-  const handleAutoSave = useCallback(async () => {
-    setAutoSaveStatus("saving")
-    try {
-      await saveDraft({
-        post_id: post?.id,
-        title,
-        content: serializedContent,
-        excerpt,
-        category,
-        tags,
-        image_url: imageUrl,
-      })
-      setAutoSaveStatus("saved")
-      setLastSaved(new Date())
-      setTimeout(() => setAutoSaveStatus("idle"), 2000)
-    } catch (e) {
-      console.error("Auto-save failed", e)
-      setAutoSaveStatus("error")
-    }
-  }, [post?.id, title, serializedContent, excerpt, category, tags, imageUrl])
-
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (title || serializedContent) {
-        handleAutoSave()
-      }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [title, serializedContent, excerpt, category, tags, imageUrl, handleAutoSave])
+  // Local autosave only; backend draft save removed
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -236,7 +232,9 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
             image_url: imageUrl,
             published: publish,
           })
-          // Clear localStorage draft after successful create
+        }
+
+        if (publish) {
           localStorage.removeItem("blog-draft")
         }
 
@@ -270,19 +268,13 @@ export function BlogEditor({ post, onClose }: BlogEditorProps) {
               {autoSaveStatus === "saving" && (
                 <>
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Saving...</span>
+                  <span>Saving locally...</span>
                 </>
               )}
               {autoSaveStatus === "saved" && (
                 <>
                   <CheckCircle className="w-3 h-3 text-green-500" />
-                  <span>Saved</span>
-                </>
-              )}
-              {autoSaveStatus === "error" && (
-                <>
-                  <AlertCircle className="w-3 h-3 text-destructive" />
-                  <span>Save failed</span>
+                  <span>Saved locally</span>
                 </>
               )}
               {lastSaved && autoSaveStatus === "idle" && <span>Last saved {lastSaved.toLocaleTimeString()}</span>}
@@ -531,7 +523,16 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (blocks:
               : type === "list"
                 ? { id: createId(), type: "list", ordered: options?.ordered ?? false, items: ["List item"] }
                 : type === "image"
-                  ? { id: createId(), type: "image", url: "", alt: "", caption: "" }
+                  ? {
+                      id: createId(),
+                      type: "image",
+                      url: "",
+                      alt: "",
+                      caption: "",
+                      fit: "fixed",
+                      size: "full",
+                      widthPercent: undefined,
+                    }
                   : type === "divider"
                     ? { id: createId(), type: "divider" }
                     : { id: createId(), type: "paragraph", text: "" }
@@ -785,35 +786,7 @@ function BlockFields({ block, onChange }: { block: Block; onChange: (data: Parti
   }
 
   if (block.type === "image") {
-    return (
-      <div className="space-y-2">
-        <input
-          value={block.url}
-          onChange={(e) => onChange({ url: e.target.value })}
-          placeholder="Image URL"
-          className="w-full px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
-        />
-        <div className="flex gap-2 flex-wrap">
-          <input
-            value={block.alt || ""}
-            onChange={(e) => onChange({ alt: e.target.value })}
-            placeholder="Alt text"
-            className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
-          />
-          <input
-            value={block.caption || ""}
-            onChange={(e) => onChange({ caption: e.target.value })}
-            placeholder="Caption"
-            className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
-          />
-        </div>
-        {block.url && (
-          <div className="relative aspect-video bg-muted rounded overflow-hidden border border-foreground/20">
-            <img src={block.url} alt={block.alt || "preview"} className="w-full h-full object-cover" />
-          </div>
-        )}
-      </div>
-    )
+    return <ImageFields block={block} onChange={onChange} />
   }
 
   if (block.type === "divider") {
@@ -825,6 +798,217 @@ function BlockFields({ block, onChange }: { block: Block; onChange: (data: Parti
 
 function HeadingIcon(props: { className?: string }) {
   return <span className={cn("font-mono text-xs", props.className)}>H</span>
+}
+
+function imageSizeProps(block: Extract<Block, { type: "image" }>) {
+  const size = block.size
+  const className =
+    size === "small"
+      ? "max-w-sm"
+      : size === "medium"
+        ? "max-w-xl"
+        : size === "large"
+          ? "max-w-3xl"
+          : "w-full"
+
+  const style = block.widthPercent
+    ? { maxWidth: `${Math.min(100, Math.max(10, block.widthPercent))}%` }
+    : undefined
+
+  return { className, style }
+}
+
+function ImageFields({ block, onChange }: { block: Extract<Block, { type: "image" }>; onChange: (data: Partial<Block>) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY
+
+  const sizeProps = imageSizeProps(block)
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        resolve(result.split(",")[1] || "")
+      }
+      reader.onerror = (err) => reject(err)
+      reader.readAsDataURL(file)
+    })
+
+  const handleFile = async (file: File) => {
+    if (!apiKey) return alert("Set NEXT_PUBLIC_IMGBB_API_KEY to enable uploads.")
+
+    setUploading(true)
+    try {
+      const base64 = await fileToBase64(file)
+      const formData = new FormData()
+      formData.append("image", base64)
+
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data?.data?.url) {
+        throw new Error(data?.error?.message || data?.data?.error || "Upload failed")
+      }
+
+      onChange({ url: data.data.url, alt: block.alt || file.name })
+    } catch (err) {
+      console.error("Image upload failed", err)
+      alert("Image upload failed. Please try again.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      void handleFile(file)
+    }
+    // allow re-uploading same file
+    e.target.value = ""
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={block.url}
+          onChange={(e) => onChange({ url: e.target.value })}
+          placeholder="Image URL"
+          className="flex-1 min-w-[220px] px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={onFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || !apiKey}
+            className="px-3 py-2 bg-secondary border-2 border-foreground rounded-sm font-mono text-xs hover:bg-secondary/80 disabled:opacity-60"
+          >
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+        </div>
+        {!apiKey && <p className="text-xs text-destructive">Set NEXT_PUBLIC_IMGBB_API_KEY to enable uploads.</p>}
+      </div>
+
+      <div className="flex gap-3 flex-wrap">
+        <input
+          value={block.alt || ""}
+          onChange={(e) => onChange({ alt: e.target.value })}
+          placeholder="Alt text"
+          className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        />
+        <input
+          value={block.caption || ""}
+          onChange={(e) => onChange({ caption: e.target.value })}
+          placeholder="Caption"
+          className="flex-1 min-w-40 px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-4 text-xs font-mono">
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Aspect</span>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="radio"
+              name={`${block.id}-fit`}
+              checked={(block.fit || "fixed") === "fixed"}
+              onChange={() => onChange({ fit: "fixed" })}
+              className="accent-foreground"
+            />
+            Default 16:9
+          </label>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="radio"
+              name={`${block.id}-fit`}
+              checked={(block.fit || "fixed") === "natural"}
+              onChange={() => onChange({ fit: "natural" })}
+              className="accent-foreground"
+            />
+            Natural height
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground">Size</span>
+          <select
+            value={block.size || "full"}
+            onChange={(e) => onChange({ size: e.target.value as "full" | "large" | "medium" | "small" })}
+            className="px-3 py-2 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+          >
+            <option value="full">Full width</option>
+            <option value="large">Large (80%)</option>
+            <option value="medium">Medium (60%)</option>
+            <option value="small">Small (40%)</option>
+          </select>
+          <label className="inline-flex items-center gap-2 mt-1">
+            <input
+              type="checkbox"
+              checked={typeof block.widthPercent === "number"}
+              onChange={(e) => onChange({ widthPercent: e.target.checked ? 60 : undefined })}
+              className="accent-foreground"
+            />
+            Custom width (%)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={1}
+              disabled={typeof block.widthPercent !== "number"}
+              value={typeof block.widthPercent === "number" ? block.widthPercent : 60}
+              onChange={(e) => onChange({ widthPercent: Number(e.target.value) })}
+              className="flex-1"
+            />
+            <input
+              type="number"
+              min={10}
+              max={100}
+              disabled={typeof block.widthPercent !== "number"}
+              value={typeof block.widthPercent === "number" ? block.widthPercent : 60}
+              onChange={(e) => onChange({ widthPercent: Number(e.target.value) })}
+              className="w-16 px-2 py-1 bg-background border-2 border-foreground rounded-sm font-mono text-xs"
+            />
+            <span className="text-xs text-muted-foreground">max width</span>
+          </div>
+        </div>
+      </div>
+
+      {block.url && (
+        <div
+          className={cn(
+            "relative bg-muted rounded overflow-hidden border border-foreground/20 mx-auto",
+            sizeProps.className,
+            (block.fit || "fixed") === "fixed" && "aspect-video",
+          )}
+          style={sizeProps.style}
+        >
+          <img
+            src={block.url}
+            alt={block.alt || "preview"}
+            className={cn(
+              "w-full object-cover",
+              (block.fit || "fixed") === "fixed" ? "h-full" : "h-auto",
+            )}
+          />
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Post Preview Component
@@ -905,8 +1089,9 @@ function BlockPreview({ block }: { block: Block }) {
     case "paragraph":
       return <p className="font-serif leading-relaxed text-base" dangerouslySetInnerHTML={render(block.text)} />
     case "heading": {
-      const Tag = `h${block.level}` as keyof JSX.IntrinsicElements
-      return <Tag className="font-bold text-2xl mt-4" dangerouslySetInnerHTML={render(block.text)} />
+      if (block.level === 1) return <h1 className="font-bold text-2xl mt-4" dangerouslySetInnerHTML={render(block.text)} />
+      if (block.level === 2) return <h2 className="font-bold text-2xl mt-4" dangerouslySetInnerHTML={render(block.text)} />
+      return <h3 className="font-bold text-2xl mt-4" dangerouslySetInnerHTML={render(block.text)} />
     }
     case "code":
       return <CodeBlock code={block.code} language={block.language} filename={block.caption} />
@@ -955,11 +1140,21 @@ function BlockPreview({ block }: { block: Block }) {
     case "image":
       return (
         <figure className="space-y-2">
-          <img
-            src={block.url || "/placeholder.svg"}
-            alt={block.alt || "image"}
-            className="w-full rounded-sm border-2 border-foreground/40"
-          />
+          {(() => {
+            const sizeProps = imageSizeProps(block)
+            return (
+              <img
+                src={block.url || "/placeholder.svg"}
+                alt={block.alt || "image"}
+                className={cn(
+                  "rounded-sm border-2 border-foreground/40 mx-auto",
+                  sizeProps.className,
+                  (block.fit || "fixed") === "fixed" ? "aspect-video object-cover w-full" : "h-auto w-full",
+                )}
+                style={sizeProps.style}
+              />
+            )
+          })()}
           {(block.caption || block.alt) && (
             <figcaption
               className="text-xs text-muted-foreground font-mono"

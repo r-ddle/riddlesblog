@@ -85,7 +85,7 @@ export function SpotifyBadge() {
         <span className="inline-flex items-center gap-2">
           <Music className="w-4 h-4" />
           <span className={track.isPlaying ? "animate-pulse" : ""}>
-            {track.isPlaying ? "now playing:" : "fav song:"}
+            {track.isPlaying ? "now playing:" : "last played:"}
           </span>
           <span className="underline decoration-wavy decoration-accent underline-offset-2">{track.name}</span>
         </span>

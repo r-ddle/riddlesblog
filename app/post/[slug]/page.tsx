@@ -28,7 +28,16 @@ type Block =
   | { id?: string; type: "quote"; text: string; attribution?: string }
   | { id?: string; type: "callout"; variant: "idea" | "fun" | "note" | "warn"; title?: string; text: string }
   | { id?: string; type: "list"; ordered: boolean; items: string[] }
-  | { id?: string; type: "image"; url: string; alt?: string; caption?: string }
+  | {
+      id?: string
+      type: "image"
+      url: string
+      alt?: string
+      caption?: string
+      fit?: "fixed" | "natural"
+      size?: "full" | "large" | "medium" | "small"
+      widthPercent?: number
+    }
   | { id?: string; type: "divider" }
 
 function tryParseBlocks(content: string): Block[] | null {
@@ -225,6 +234,32 @@ export default async function PostPage({ params }: PostPageProps) {
 function BlockRenderer({ block }: { block: Block }) {
   const render = (text: string) => ({ __html: renderInlineMarkdown(text || "") })
 
+  const imageSizeClass = (size?: Block["size"]) => {
+    switch (size) {
+      case "small":
+        return "max-w-sm"
+      case "medium":
+        return "max-w-xl"
+      case "large":
+        return "max-w-3xl"
+      default:
+        return "w-full"
+    }
+  }
+  const imageSizeProps = (b: Extract<Block, { type: "image" }>) => {
+    const size = b.size
+    const className =
+      size === "small"
+        ? "max-w-sm"
+        : size === "medium"
+          ? "max-w-xl"
+          : size === "large"
+            ? "max-w-3xl"
+            : "w-full"
+
+    const style = b.widthPercent ? { maxWidth: `${Math.min(100, Math.max(10, b.widthPercent))}%` } : undefined
+    return { className, style }
+  }
   switch (block.type) {
     case "paragraph":
       return <p className="font-serif leading-relaxed" dangerouslySetInnerHTML={render(block.text)} />
@@ -279,11 +314,21 @@ function BlockRenderer({ block }: { block: Block }) {
     case "image":
       return (
         <figure className="space-y-2">
-          <img
-            src={block.url || "/placeholder.svg"}
-            alt={block.alt || "image"}
-            className="w-full rounded-sm border-2 border-foreground/40"
-          />
+              {(() => {
+                const sizeProps = imageSizeProps(block)
+                return (
+                  <img
+                    src={block.url || "/placeholder.svg"}
+                    alt={block.alt || "image"}
+                    className={cn(
+                      "rounded-sm border-2 border-foreground/40 mx-auto",
+                      sizeProps.className,
+                      (block.fit || "fixed") === "fixed" ? "aspect-video object-cover w-full" : "h-auto w-full",
+                    )}
+                    style={sizeProps.style}
+                  />
+                )
+              })()}
           {(block.caption || block.alt) && (
             <figcaption
               className="text-xs text-muted-foreground font-mono"
