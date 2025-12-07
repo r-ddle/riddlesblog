@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -8,9 +10,23 @@ export default function SpotifySetupPage() {
   const [refreshToken, setRefreshToken] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
+  const [redirectUri, setRedirectUri] = useState("")
 
   const clientId = "b975bc0b794f481b9e4f16e87d599cc9"
-  const redirectUri = "http://localhost:3000/spotify-setup"
+
+  useEffect(() => {
+    // Set redirect URI based on current domain
+    const uri = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/spotify-setup`
+    setRedirectUri(uri)
+
+    // Extract code from URL on mount
+    const params = new URLSearchParams(window.location.search)
+    const urlCode = params.get("code")
+    if (urlCode) {
+      setCode(urlCode)
+      setStep(2)
+    }
+  }, [])
 
   const handleAuthorize = () => {
     const scope = "user-read-currently-playing user-read-private user-read-email"
@@ -72,7 +88,7 @@ export default function SpotifySetupPage() {
             <h2 className="font-bold mb-4">⚠️ Important: Update Spotify App Settings</h2>
             <p className="text-sm text-muted-foreground mb-4">Before authorizing, go to your Spotify Developer dashboard and add this redirect URI:</p>
             <div className="bg-foreground/5 border-2 border-foreground rounded-sm p-4 font-mono text-xs mb-4 break-all">
-              http://localhost:3000/spotify-setup
+              {redirectUri || "Loading..."}
             </div>
             <p className="text-sm text-muted-foreground">Then come back and click authorize.</p>
           </div>
