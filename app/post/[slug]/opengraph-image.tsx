@@ -1,7 +1,8 @@
-import { ImageResponse } from "next/server"
+import { ImageResponse } from "next/og"
 import { getPostBySlug } from "@/lib/blog-actions"
 
-export const runtime = "edge"
+// Use node runtime to avoid edge/DB issues
+export const runtime = "nodejs"
 export const alt = "Post preview"
 export const size = {
   width: 1200,
@@ -13,7 +14,12 @@ const fallbackImage = "https://i.imgur.com/kwHJp29.gif"
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = await getPostBySlug(slug)
+  let post = null
+  try {
+    post = await getPostBySlug(slug)
+  } catch (err) {
+    console.error("OG image post fetch failed", err)
+  }
 
   if (!post) {
     return new ImageResponse(
@@ -42,6 +48,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const title = post.title || "Untitled"
   const subtitle = post.excerpt || "riddle's ventlog"
   const category = post.category || ""
+  const safeCover = cover || fallbackImage
 
   return new ImageResponse(
     (
@@ -57,7 +64,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         }}
       >
         <img
-          src={cover}
+          src={safeCover}
           alt="background"
           style={{
             position: "absolute",
@@ -102,7 +109,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             }}
           >
             <img
-              src={cover}
+              src={safeCover}
               alt="cover"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
