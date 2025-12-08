@@ -22,8 +22,6 @@ export async function generateStaticParams() {
   }))
 }
 
-const defaultOgImage = "https://i.imgur.com/kwHJp29.gif"
-
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { slug } = await params
   const post = await getPostBySlug(slug)
@@ -34,7 +32,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   const canonical = `${baseUrl}/post/${post.slug}`
-  const image = post.image_url || defaultOgImage
+  const image = post.image_url || null
 
   return {
     title: post.title,
@@ -44,21 +42,23 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
       description: post.excerpt || undefined,
       url: canonical,
       siteName: "riddle's ventlog",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
+      images: image
+        ? [
+            {
+              url: image,
+              width: 1200,
+              height: 630,
+              alt: post.title,
+            },
+          ]
+        : undefined,
       type: "article",
     },
     twitter: {
-      card: "summary_large_image",
+      card: image ? "summary_large_image" : "summary",
       title: post.title,
       description: post.excerpt || undefined,
-      images: [image],
+      images: image ? [image] : undefined,
     },
     alternates: {
       canonical,

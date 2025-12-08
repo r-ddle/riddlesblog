@@ -10,8 +10,6 @@ export const size = {
 }
 export const contentType = "image/png"
 
-const fallbackImage = "https://i.imgur.com/kwHJp29.gif"
-
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   let post = null
@@ -44,11 +42,10 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     )
   }
 
-  const cover = post.image_url || fallbackImage
+  const cover = post.image_url || null
   const title = post.title || "Untitled"
   const subtitle = post.excerpt || "riddle's ventlog"
   const category = post.category || ""
-  const safeCover = cover || fallbackImage
 
   return new ImageResponse(
     (
@@ -63,19 +60,21 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           fontFamily: "Inter, 'Segoe UI', sans-serif",
         }}
       >
-        <img
-          src={safeCover}
-          alt="background"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            filter: "blur(16px) brightness(0.55)",
-            transform: "scale(1.05)",
-          }}
-        />
+        {cover && (
+          <img
+            src={cover}
+            alt="background"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              filter: "blur(16px) brightness(0.55)",
+              transform: "scale(1.05)",
+            }}
+          />
+        )}
 
         <div
           style={{
@@ -97,23 +96,25 @@ export default async function Image({ params }: { params: Promise<{ slug: string
             boxSizing: "border-box",
           }}
         >
-          <div
-            style={{
-              width: 360,
-              height: 420,
-              borderRadius: 18,
-              overflow: "hidden",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.35)",
-              border: "2px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.03)",
-            }}
-          >
-            <img
-              src={safeCover}
-              alt="cover"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          </div>
+          {cover && (
+            <div
+              style={{
+                width: 360,
+                height: 420,
+                borderRadius: 18,
+                overflow: "hidden",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.35)",
+                border: "2px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.03)",
+              }}
+            >
+              <img
+                src={cover}
+                alt="cover"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
+          )}
 
           <div
             style={{
